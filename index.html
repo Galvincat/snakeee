@@ -78,11 +78,57 @@
           
         </div>
         <div class="map" id="map">
+            
            
         </div>
-      
+        <div id="touchControls" style="text-align: center; display: none;">
+            <button class="btn" id="upBtn">↑</button><br>
+            <button class="btn" id="leftBtn">←</button>
+            <button class="btn" id="rightBtn">→</button><br>
+            <button class="btn" id="downBtn">↓</button>
+        </div>
        
         <script type="text/javascript">
+             function isMobile() {
+            return window.innerWidth <= 768; // You can adjust the breakpoint as needed
+        }
+
+        // Show touch controls on mobile, hide on computer
+        var touchControls = document.getElementById('touchControls');
+        if (isMobile()) {
+            touchControls.style.display = 'block';
+
+            // Add touch event listeners for directional buttons
+            var upBtn = document.getElementById('upBtn');
+            var leftBtn = document.getElementById('leftBtn');
+            var rightBtn = document.getElementById('rightBtn');
+            var downBtn = document.getElementById('downBtn');
+
+            upBtn.addEventListener('touchstart', function() {
+                if (snake.direction != 'down') {
+                    snake.direction = 'up';
+                }
+            });
+
+            leftBtn.addEventListener('touchstart', function() {
+                if (snake.direction != 'right') {
+                    snake.direction = 'left';
+                }
+            });
+
+            rightBtn.addEventListener('touchstart', function() {
+                if (snake.direction != 'left') {
+                    snake.direction = 'right';
+                }
+            });
+
+            downBtn.addEventListener('touchstart', function() {
+                if (snake.direction != 'up') {
+                    snake.direction = 'down';
+                }
+            });
+        }
+
             var map = document.getElementById('map');
             var scores = JSON.parse(localStorage.getItem('scores')) || [];
             //var MAX_SCORES = 10; 设置数组最大长度
