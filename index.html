@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>贪吃蛇</title>
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: rgb(131, 198, 8);
+        }
+
+        .main {
+            width: 800px;
+            height: 400px;
+            margin: 50px auto;
+
+        }
+
+        .btn {
+            width: 100px;
+            height: 40px;
+            background-color: aqua;
+            border-radius: 10px;
+        }
+
+        .map {
+            position: relative;
+            width: 1000px;
+            height: 700px;
+            background: #deb603;
+            /* background-image: url("/游戏背景.jpg"); */
+            border: 1px gray solid;
+            box-shadow: 2px 2px 4px #000;
+        }
+        .color{
+            font-weight: bolder;
+            border-radius: 50%;
+        }
+        .score{
+
+           left: 50%;
+           transform: translate(50%, 50%);
+
+                 }
+         .select{
+                     height: 38px;
+                     background-color: rgb(15, 159, 199);
+                     color: white;
+                     border-radius: 10px;
+                 }
+    </style>
+</head>
+
+<body>
+    <div class="score" style="font-size: 1.5em;font-weight: bolder;">当前分数：<span id="score"  class="score" style="color: rgb(22, 35, 217); margin-top: 4vh;"></span></div>
+    <audio src="背景声音.mp3" autoplay loop></audio>
+  
+    <div class="main">
+        <button class="btn" id="begin">开始游戏</button>
+        <button class="btn" id="pause">暂停游戏</button>
+        
+       
+        <select id="snakeStyle" class="select">
+            <option value="head1">马保国蛇头</option>
+            <option value="head2">小熊蛇头</option>
+            <option value="head3">蔡徐坤蛇头</option>
+            <option value="head4">正常蛇头</option>
+          </select>
+          
+        <div id="pauseOptions" style="display: none;">
+          <button class="btn" id="resume">继续游戏</button>
+          <button class="btn" id="restart">重新开始</button>
+          
+        </div>
+        <div class="map" id="map">
+           
+        </div>
+      
+       
+        <script type="text/javascript">
+            var map = document.getElementById('map');
+            var scores = JSON.parse(localStorage.getItem('scores')) || [];
+            //var MAX_SCORES = 10; 设置数组最大长度
+            // var audioElement = document.createElement('audio');
+            //         audioElement.src = '背景声音.mp3';
+            // 使用构造方法创建蛇，
+            function Snake() {
+    // 设置蛇的宽、高、默认走的方向
+    this.width = 25;
+    this.height = 25;
+    this.direction = 'right';
+    this.score = 0;
+    this.paused = false;
+    this.temp = null
+    
+    // 记住蛇的状态，当吃完食物的时候，就要加一个，初始为3个小点为一个蛇
+    this.body = [
+        { x: -1, y: 0 }, // 蛇头，第一个点
+        { x: -2, y: 0 }, // 蛇脖子，第二个点
+        { x: -3, y: 0 }  // 蛇尾，第三个点
+    ];
+    
+    // 显示蛇
+    this.display = function () {
+        var selectElement = document.querySelector('.color');
+        var snakeStyleSelect = document.getElementById("snakeStyle");
+var selectedStyle = snakeStyleSelect.value;
+
+        // 创建蛇
+        for (var i = 0; i < this.body.length; i++) {
+            if (this.body[i].x != null) { // 当吃到食物时，x==null，不能新建，不然会在0，0处新建一个
+                var s = document.createElement('div');
+                // 将节点保存到状态中，以便于后面删除
+                this.body[i].flag = s;
+                // 设置宽高
+                s.style.width = this.width + 'px';
+                s.style.height = this.height + 'px';
+                // 设置位置
+                s.style.position = 'absolute';
+                s.style.left = this.body[i].x * this.width + 'px';
+                s.style.top = this.body[i].y * this.height + 'px';
+                // 根据蛇的部位设置不同的样式
+                if (i === 0) {
+                    s.style.borderRadius = '50%';
+                    if (selectedStyle === "head1") {
+        s.style.background = 'url("马保国.jpg")';
+      } else if (selectedStyle === "head2") {
+        s.style.background = 'url("用户名.png")';
+      } else if (selectedStyle === "head3") {
+        s.style.background = 'url("蔡徐坤.jpg")';
+      }
+      else if (selectedStyle === "head4") {
+        s.style.background = 'url("正常蛇.jpg")';
+      }
+                } else {
+                    s.style.borderRadius = '50%';
+                    // 设置蛇身样式
+                    s.style.background = 'url("大厅背景.jpg")';
+                }
+                s.style.backgroundSize = 'cover';
+                map.appendChild(s);
+            }
+        }
+        
+        var scoreElement = document.getElementById('score');
+        scoreElement.textContent =  this.score; // 更新得分显示
+    };
+
+                // 让蛇跑起来,后一个元素到前一个元素的位置
+                // 蛇头根据方向处理，所以i不能等于0
+                this.run = function () {
+                    // 后一个元素到前一个元素的位置
+                    for (var i = this.body.length - 1; i > 0; i--) {
+                        this.body[i].x = this.body[i - 1].x;
+                        this.body[i].y = this.body[i - 1].y;
+                    }
+
+                    // 根据方向处理蛇头
+                    switch (this.direction) {
+                        case "left":
+                            this.body[0].x -= 1;
+                            break;
+                        case "right":
+                            this.body[0].x += 1;
+                            break;
+                        case "up":
+                            this.body[0].y -= 1;
+                            break;
+                        case "down":
+                            this.body[0].y += 1;
+                            break;
+                    }
+
+                    // 判断是否出界,一蛇头判断,出界的话，
+                    if (this.body[0].x < 0 || this.body[0].x > 39 || this.body[0].y < 0 || this.body[0].y > 27) {
+                        clearInterval(timer); // 清除定时器，
+                        alert("你该配眼睛了，这么慢的速度你都能撞墙！！！最终得分：" + this.score); // 显示最终得分
+                      
+                        scores.push(this.score);
+      
+    
+      
+                        // 删除旧的
+                        for (var i = 0; i < this.body.length; i++) {
+                            if (this.body[i].flag != null) { // 如果刚吃完就死掉，会加一个值为null的
+                                map.removeChild(this.body[i].flag);
+                            }
+                        }
+                          // Save the scores array to localStorage
+     
+                        this.body = [ // 回到初始状态，
+                            {
+                                x: 2,
+                                y: 0
+                            },
+                            {
+                                x: 1,
+                                y: 0
+                            },
+                            {
+                                x: 0,
+                                y: 0
+                            }
+                        ];
+                    
+                        this.direction = 'right';
+    //                     if (scores.length > MAX_SCORES) {
+    //     scores.shift(); // 移除开头的最旧分数
+    //   }
+                        localStorage.setItem('scores', JSON.stringify(scores));
+                        const maxScore = Math.max(...scores); // 获取数组中的最大值
+
+// 检查localStorage是否支持
+if (typeof localStorage !== 'undefined') {
+  // 将最大值转换为字符串，并存储到localStorage中
+  localStorage.setItem('maxScore', JSON.stringify(maxScore));
+}// 从localStorage中获取最大值，并解析为数字类型
+const storedMaxScore = JSON.parse(localStorage.getItem('maxScore'));
+if(this.score<storedMaxScore){
+    alert("很遗憾没有打破最高纪录，最高分为"+storedMaxScore+"你的得分为"+this.score)
+}
+else{
+    alert("恭喜你打破了最记录，分数为："+storedMaxScore)
+
+}
+// 使用最大值
+console.log("最高分为"+storedMaxScore);
+      // Render the scores in the HTML
+      renderScores();
+                        this.display(); // 显示初始状态
+                        return false; // 结束
+                    }
+                    var audioElement = document.createElement('audio');
+                    audioElement.src = '坤叫.mp3';
+                    // audioElement.src = '菜鸟图库-怪吃东西音乐.mp3';
+                    //判断蛇头吃到食物，xy坐标重合，
+                    if (this.body[0].x == food.x && this.body[0].y == food.y) {
+                        this.score++; // 增加得分
+                          // 播放音频
+                         audioElement.play();
+                        // 蛇加一节，因为根据最后节点定，下面display时，会自动赋值的
+                        this.body.push({
+                            x: null,
+                            y: null,
+                            flag: null
+                        });
+                        // 清除食物,重新生成食物
+                        map.removeChild(food.flag);
+                        food.display();
+                    }
+
+                    // 吃到自己死亡，从第五个开始与头判断，因为前四个永远撞不到
+                    for (var i = 4; i < this.body.length; i++) {
+                        if (this.body[0].x == this.body[i].x && this.body[0].y == this.body[i].y) {
+                            clearInterval(timer); // 清除定时器，
+                            alert("傻瓜！饿了也不能吃自己呀！","最终得分：" + this.score);
+                            // alert("最终得分：" + this.score); // 显示最终得分
+                            scores.push(this.score);
+                       // 删除旧的
+                            for (var i = 0; i < this.body.length; i++) {
+                                if (this.body[i].flag != null) { // 如果刚吃完就死掉，会加一个值为null的
+                                    map.removeChild(this.body[i].flag);
+                                }
+                            }
+                            this.body = [ // 回到初始状态，
+                                {
+                                    x: 2,
+                                    y: 0
+                                },
+                                {
+                                    x: 1,
+                                    y: 0
+                                },
+                                {
+                                    x: 0,
+                                    y: 0
+                                }
+                            ];
+                            this.direction = 'right';
+                                    
+      
+  
+                            localStorage.setItem('scores', JSON.stringify(scores));
+                        const maxScore = Math.max(...scores); // 获取数组中的最大值
+                        // 检查localStorage是否支持
+                        if (typeof localStorage !== 'undefined') {
+                        // 将最大值转换为字符串，并存储到localStorage中
+                        localStorage.setItem('maxScore', JSON.stringify(maxScore));
+                        }// 从localStorage中获取最大值，并解析为数字类型
+                        const storedMaxScore = JSON.parse(localStorage.getItem('maxScore'));
+                        if(this.score<storedMaxScore){
+                            alert("很遗憾没有打破最高纪录，最高分为"+storedMaxScore)
+                        }
+                        else{
+                            alert("恭喜你打破了最记录，分数为："+storedMaxScore)
+
+                        }
+// 使用最大值
+console.log("最高分为"+storedMaxScore);
+      // Render the scores in the HTML
+      renderScores();
+                            this.display(); // 显示初始状态
+                            return false; // 结束
+                        }
+                    }
+
+//判断障碍物
+                    
+if (this.temp){
+                        
+                        clearInterval(timer); // 清除定时器，
+                        alert("别把自己撞懵啦！");
+                        this.temp=null;
+                        scores.push(this.score);
+                        // 删除旧的
+                        for (var i = 0; i < this.body.length; i++) {
+                            if (this.body[i].flag != null) { // 如果刚吃完就死掉，会加一个值为null的
+                                map.removeChild(this.body[i].flag);
+                            }
+                        }
+                        this.body = [ // 回到初始状态，
+                            {
+                                x: 2,
+                                y: 0
+                            },
+                            {
+                                x: 1,
+                                y: 0
+                            },
+                            {
+                                x: 0,
+                                y: 0
+                            }
+                        ];
+                        this.direction = 'right';
+                        localStorage.setItem('scores', JSON.stringify(scores));
+                        const maxScore = Math.max(...scores); // 获取数组中的最大值
+
+// 检查localStorage是否支持
+if (typeof localStorage !== 'undefined') {
+  // 将最大值转换为字符串，并存储到localStorage中
+  localStorage.setItem('maxScore', JSON.stringify(maxScore));
+}// 从localStorage中获取最大值，并解析为数字类型
+const storedMaxScore = JSON.parse(localStorage.getItem('maxScore'));
+if(this.score<storedMaxScore){
+    alert("很遗憾没有打破最高纪录，最高分为"+storedMaxScore)
+}
+else{
+    alert("恭喜你打破了最记录，分数为："+storedMaxScore)
+
+}
+// 使用最大值
+console.log("最高分为"+storedMaxScore);
+      // Render the scores in the HTML
+      renderScores();
+                        this.display(); // 显示初始状态
+                        return false; // 结束
+        
+                        
+                    }
+
+
+
+                    // 先删掉初始的蛇，在显示新蛇
+                    for (var i = 0; i < this.body.length; i++) {
+                        if (this.body[i].flag != null) { // 当吃到食物时，flag是等于null，且不能删除
+                            map.removeChild(this.body[i].flag);
+                        }
+                    }
+
+
+                    
+                    // 重新显示蛇
+                    this.display();
+
+                }
+            }
+
+     // 构造食物
+            function Food() {
+                this.width = 25;
+                this.height = 25;
+                this.display = function () {
+                    var f = document.createElement('div');
+                    this.flag = f;
+                    f.style.width = this.width + 'px';
+                    f.style.height = this.height + 'px';
+                    f.style.background = 'red';
+                    f.style.borderRadius = '50%';
+                    f.style.position = 'absolute';
+                    this.x = Math.floor(Math.random() * 40);
+                    this.y = Math.floor(Math.random() * 28);
+                    f.style.left = this.x * this.width + 'px';
+                    f.style.top = this.y * this.height + 'px';
+                    map.appendChild(f);
+                }
+            }
+
+            function Restrit(){ //障碍物对象
+
+                this.width=25;
+                this.height=25;                        
+                this.display=function(){
+                    var j=document.createElement('div');
+                    this.flag=j;
+                    j.style.width = this.width + 'px';
+                    j.style.height = this.height + 'px';
+                    j.style.background = 'black';
+                    j.style.borderRadius = '50%';
+                    j.style.position = 'absolute';
+                    var judgment = 1;
+                    this.x = Math.floor(Math.random() * 40);
+                    this.y = Math.floor(Math.random() * 28);
+                    while(judgment){  //不能和食物重合          
+                        if(this.x == food.x && this.y == food.y){
+                            this.x = Math.floor(Math.random() * 40);
+                            this.y = Math.floor(Math.random() * 28); 
+                        }else if(this.y > 23){ //避免障碍物越界
+                            this.y =Math.floor(Math.random()*28)
+                        }
+                        else judgment = 0;
+                    }
+                    for (var i = 0; i < 5; i++) {
+                    var newY = this.y + i;
+                    var newDiv = j.cloneNode(true);
+                    newDiv.style.left = this.x * this.width + 'px';
+                    newDiv.style.top = newY * this.height + 'px';
+                    map.appendChild(newDiv);
+                    }
+                }
+            }
+            function judgmentCreate(e){//创建障碍
+    var SaveArry=[];
+for(var i=0;i<e;i++){ //将障碍对象保存在数组
+    SaveArry.push(new Restrit());
+    SaveArry[i].display();
+    }         
+    return SaveArry;
+}
+            
+function judgmentFood(array){//判断食物是否与障碍重合
+        
+        var temp = 0;         
+        setInterval(()=> {array.forEach(restrit => {
+       //判断蛇头是否与障碍物相碰
+        if (food.x==restrit.x ){
+            switch(food.y){
+                case restrit.y:
+                case restrit.y+1:
+                case restrit.y+2:
+                case restrit.y+3:
+                case restrit.y+4:temp+=1;
+        }}
+        
+                    });
+        if(temp){
+            map.removeChild(food.flag);
+            food.display();
+                    }
+        
+        temp=0},40)
+    }
+
+    function judgmentHit(array){
+    var temp = 0;         //判断蛇头是否与障碍相碰
+    setInterval(()=> {array.forEach(restrit => {
+   //判断蛇头是否与障碍物相碰
+if (snake.body[0].x==restrit.x ){
+    switch(snake.body[0].y){
+    case restrit.y:
+    case restrit.y+1:
+    case restrit.y+2:
+    case restrit.y+3:
+    case restrit.y+4:temp+=1;
+    }}
+                });
+    snake.temp =temp;
+    temp=0},10)
+}
+
+
+          
+            var snake = new Snake();
+            var food = new Food();
+
+
+            var arrayRe = judgmentCreate(5);//障碍物个数
+
+
+
+            snake.display(); // 初始化显示
+            food.display();
+            judgmentFood(arrayRe);
+            judgmentHit(arrayRe);
+
+           
+            // 给body加按键事件，上下左右
+            document.body.onkeydown = function (e) {
+                // 有事件对象就用事件对象，没有就自己创建一个，兼容低版本浏览器
+                var ev = e || window.event;
+                switch (ev.keyCode) {
+                    case 38:
+                    case 87:
+                        if (snake.direction != 'down') { // 不允许返回，向上的时候不能向下
+                            snake.direction = "up";
+                        }
+                        break;
+                    case 40:
+                    case 83:
+                        if (snake.direction != "up") {
+                            snake.direction = "down";
+                        }
+                        break;
+                    case 37:
+                    case 65:
+                        if (snake.direction != "right") {
+                            snake.direction = "left";
+                        }
+                        break;
+                    case 39:
+                    case 68:
+                        if (snake.direction != "left") {
+                            snake.direction = "right";
+                        }
+                        break;
+                }
+            };
+
+            // 点击开始时，动起来
+            var begin = document.getElementById('begin');
+            var timer;
+            
+            begin.onclick = function () {
+                clearInterval(timer);
+                snake.score = 0; // 重置分数
+               
+                timer = setInterval("snake.run()", 120); // 执行run函数并定义执行的时间间隔
+
+            };
+            var snake = new Snake(); // 创建蛇对象
+            var timer = null; // 定时器变量
+            var pauseBtn = document.getElementById('pause');
+            var resumeBtn = document.getElementById('resume');
+            var restartBtn = document.getElementById('restart');
+            var pauseOptions = document.getElementById('pauseOptions');
+
+            pauseBtn.addEventListener('click', function() {
+             clearInterval(timer); // 暂停游戏，清除定时器
+            pauseOptions.style.display = 'block'; // 显示继续游戏和重新开始按钮
+            });
+            resumeBtn.addEventListener('click', function() {
+            pauseOptions.style.display = 'none'; // 隐藏继续游戏和重新开始按钮
+            setTimeout(function() {
+                timer = setInterval(function() {
+                snake.run();
+                }, 120);
+            }, 1000);
+            });
+
+restartBtn.addEventListener('click', function() {
+  clearInterval(timer); // 清除定时器
+  snake.score = 0; // 重置分数
+  // 清除旧的蛇
+  for (var i = 0; i < snake.body.length; i++) {
+    if (snake.body[i].flag != null) {
+      map.removeChild(snake.body[i].flag);
+    }
+  }
+  snake.body = [
+    { x: 2, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: 0 }
+  ]; // 重置蛇的位置
+  snake.direction = 'right'; // 重置方向
+  snake.display(); // 重新显示蛇
+  pauseOptions.style.display = 'none'; // 隐藏继续游戏和重新开始按钮
+  timer = setInterval(function() {
+    snake.run();
+  }, 120); // 重新开始游戏
+});
+        </script>
+    </div>
+</body>
+
+</html>
